@@ -1,0 +1,58 @@
+{% extends 'body/welcome.html' %}
+{% load static %}
+{% block content %}
+    <div class="post-page-wrapper">
+        <div class="post-wrapper content-wrapper">
+            <div class="post-image-large">
+                {% if post.image %}
+                    <img src="{{ post.image.url }}" alt="Post Image">
+                {% endif %}
+            </div>
+            <div class="post-details">
+                <h1>{{ post.title }}</h1>
+                {% if post.user.is_superuser %}
+                    <p class="author-info">Posted by <em>ADMIN</em></p>
+                {% else %}
+                    <p class="author-info">Posted by <em>{{ post.user.userprofile.nickname }}</em></p>
+                {% endif %}
+                {% if post.privacy == 'public' or user.is_authenticated %}
+                    <div class="post-content">
+                        <p>{{ post.content }}</p>
+                    </div>
+                {% else %}
+                    <p>This is a private post. Please login to view the content.</p>
+                {% endif %}
+            </div>
+            {% if user.is_authenticated %}
+                {% if post.privacy == 'public' or post.privacy == 'private' %}
+                    <div class="add-comment-section">
+                        <h2>Add a Comment</h2>
+                        <form method="post" action="">
+                            {% csrf_token %}
+                            <textarea name="content" class="{% if not post.image %}no-image{% endif %}" placeholder="Your comment"></textarea>
+                            <button type="submit">Submit</button>
+                        </form>
+                    </div>
+                {% endif %}
+            {% else %}
+                <p>Login to add a comment.</p>
+            {% endif %}
+            <div class="comments-section">
+                <h2 class="comments-heading">Comments</h2>
+                {% for comment in post.comments.all %}
+                    <div class="comment">
+                        <p class="comment-content">{{ comment.content }}</p>
+                        <p class="comment-info">Posted by <em>{{ comment.nickname|default:"ADMIN" }}</em> on {{ comment.comment_added_date }}</p>
+                    </div>
+                {% empty %}
+                    <p>No comments yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="pagination">
+            <a href="{% url 'latestposts' %}"><i class="fas fa-angle-left"></i></a>
+            <a href="{% url 'frontpage' %}" class="home-link"><i class="fas fa-home"></i></a>
+        </div>        
+    </div>
+    <script src="{% static 'pdf.js' %}"></script>
+{% endblock %}

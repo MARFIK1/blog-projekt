@@ -14,6 +14,7 @@ from body.views import (
     private_post_view,
     tag_posts_view,
     search_view,
+    generate_pdf,
 )
 from django.conf import settings
 from django.conf.urls.static import static
@@ -33,6 +34,7 @@ urlpatterns = [
     path('post/private/<slug:slug>/', private_post_view, name='private_post'),
     path('tag/<str:tag_name>/', tag_posts_view, name='tag_posts'),
     path('search/', search_view, name='search'),
+    path('generate_pdf/<slug:post_slug>/', generate_pdf, name='generate_pdf'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

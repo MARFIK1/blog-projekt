@@ -49,10 +49,34 @@
                 {% endfor %}
             </div>
         </div>
+        <div class="pdf-section">
+            <button id="pdf-download-button">Generate PDF</button>
+        </div>
         <div class="pagination">
             <a href="{% url 'latestposts' %}"><i class="fas fa-angle-left"></i></a>
             <a href="{% url 'frontpage' %}" class="home-link"><i class="fas fa-home"></i></a>
         </div>        
     </div>
     <script src="{% static 'pdf.js' %}"></script>
+    <script>
+        document.getElementById('pdf-download-button').addEventListener('click', function() {
+            // Wysłanie żądania do serwera, aby wygenerować PDF
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/generate_pdf/{{ post.slug }}/', true);
+            xhr.responseType = 'blob';
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    // Pobranie pliku PDF
+                    var blob = new Blob([xhr.response], { type: 'application/pdf' });
+                    var link = document.createElement('a');
+                    link.href = window.URL.createObjectURL(blob);
+                    link.download = 'post.pdf';
+                    link.click();
+                }
+            };
+
+            xhr.send();
+        });
+    </script>
 {% endblock %}

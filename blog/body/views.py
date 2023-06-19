@@ -5,10 +5,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .forms import UserRegistrationForm, UserLoginForm, NewPostForm, CommentForm
 from .models import UserProfile, Post, Tag, Comment
 from django.utils import timezone
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils.text import slugify
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, HttpResponse
 from django.db.models import Q 
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+from django.views.decorators.csrf import csrf_exempt
+from io import BytesIO
 
 def register_view(request):
     if request.method == 'POST':
@@ -124,10 +128,22 @@ def newpost_view(request):
 
 def tag_posts_view(request, tag_name):
     tag = Tag.objects.get(name=tag_name)
-    posts = tag.post_set.all().order_by('-post_added_date')
-    paginator = Paginator(posts, 9)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+
+    if request.user.is_authenticated:
+        posts = tag.post_set.all().order_by('-post_added_date')
+    else:
+        posts = tag.post_set.filter(Q(privacy='public')).order_by('-post_added_date')
+
+    per_page = 9
+    paginator = Paginator(posts, per_page)
+    page_number = request.GET.get('page', 1)
+
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
 
     context = {
         'tag': tag.name,
@@ -143,16 +159,24 @@ def favourites_view(request):
     return render(request, 'favourites.html')
 
 def latestposts_view(request):
-    all_posts = Post.objects.filter(Q(privacy='public') | Q(privacy='private')).order_by('-post_added_date')
-    paginator = Paginator(all_posts, 9)
-    page_number = request.GET.get('page')
-    latest_posts = paginator.get_page(page_number)
+    if request.user.is_authenticated:
+        all_posts = Post.objects.filter(Q(privacy='public') | Q(privacy='private')).order_by('-post_added_date')
+    else:
+        all_posts = Post.objects.filter(privacy='public').order_by('-post_added_date')
 
-    is_user_logged_in = request.user.is_authenticated
+    per_page = 9
+    paginator = Paginator(all_posts, per_page)
+    page_number = request.GET.get('page', 1)
+
+    try:
+        latest_posts = paginator.page(page_number)
+    except PageNotAnInteger:
+        latest_posts = paginator.page(1)
+    except EmptyPage:
+        latest_posts = paginator.page(paginator.num_pages)
 
     context = {
         'latestposts': latest_posts,
-        'is_user_logged_in': is_user_logged_in,
     }
     return render(request, 'latestposts.html', context)
 
@@ -284,3 +308,20 @@ def search_view(request):
         return render(request, 'search.html', context)
     else:
         return render(request, 'search.html')
+
+@csrf_exempt
+def generate_pdf(request, post_slug):
+    try:
+        post = Post.objects.get(slug=post_slug)
+    except Post.DoesNotExist:
+        return HttpResponse('Post not found', status=404)
+
+    template = get_template('post.html')
+    context = {'post': post}
+    html = template.render(context)
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="post.pdf"'
+    pisa.CreatePDF(html, dest=response)
+
+    return response

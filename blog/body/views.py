@@ -11,8 +11,7 @@ from django.http import HttpResponseForbidden, HttpResponse
 from django.db.models import Q 
 from django.template.loader import get_template
 from xhtml2pdf import pisa
-from django.views.decorators.csrf import csrf_exempt
-from io import BytesIO
+import unicodedata
 
 def register_view(request):
     if request.method == 'POST':
@@ -309,7 +308,6 @@ def search_view(request):
     else:
         return render(request, 'search.html')
 
-@csrf_exempt
 def generate_pdf(request, post_slug):
     try:
         post = Post.objects.get(slug=post_slug)
@@ -320,8 +318,10 @@ def generate_pdf(request, post_slug):
     context = {'post': post}
     html = template.render(context)
 
+    normalized_html = unicodedata.normalize('NFKD', html).encode('ascii', 'ignore').decode('utf-8')
+
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="post.pdf"'
-    pisa.CreatePDF(html, dest=response)
+    pisa.CreatePDF(normalized_html, dest=response)
 
     return response
